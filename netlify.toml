@@ -1,0 +1,33 @@
+# Sitio estático: se publica la carpeta tal cual, sin build
+[build]
+  publish = "."
+
+# Fotos e íconos casi nunca cambian: caché larga
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# Catálogo, precios y configuración: siempre la versión nueva
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Herramientas internas no se sirven
+[[redirects]]
+  from = "/tools/*"
+  to = "/"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/dev-server.js"
+  to = "/"
+  status = 404
+  force = true

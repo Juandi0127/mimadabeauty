@@ -1,0 +1,12 @@
+{
+  "name": "MIMADA Beauty",
+  "short_name": "MIMADA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#60392A",
+  "theme_color": "#60392A",
+  "icons": [
+    { "src": "assets/img/icono-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/img/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

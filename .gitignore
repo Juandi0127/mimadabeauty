@@ -1,0 +1,15 @@
+# Configuración local de Claude / editor
+.claude/
+.vscode/
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Fotos originales descargadas de Instagram (las usadas en la web están en assets/img/productos)
+assets/img/ig/
