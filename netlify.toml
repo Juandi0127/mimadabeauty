@@ -1,6 +1,13 @@
-# Sitio estático: se publica la carpeta tal cual, sin build
+# Sitio estático + funciones (catálogo sincronizado con el proveedor y panel admin)
 [build]
   publish = "."
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
 
 # Fotos e íconos casi nunca cambian: caché larga
 [[headers]]
@@ -8,7 +15,7 @@
   [headers.values]
     Cache-Control = "public, max-age=604800"
 
-# Catálogo, precios y configuración: siempre la versión nueva
+# Código, estilos y respaldo del catálogo: siempre la versión nueva
 [[headers]]
   for = "/js/*"
   [headers.values]
@@ -19,15 +26,39 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
-# Herramientas internas no se sirven
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Panel de administración: no indexar ni guardar en caché
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+
+# Archivos internos que no deben servirse
 [[redirects]]
   from = "/tools/*"
-  to = "/"
+  to = "/404"
   status = 404
   force = true
 
 [[redirects]]
-  from = "/dev-server.js"
-  to = "/"
+  from = "/netlify/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/dev-server.mjs"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package*"
+  to = "/404"
   status = 404
   force = true

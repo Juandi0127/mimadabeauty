@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Panel · MIMADA Beauty</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%2360392A'/%3E%3Cpath d='M12 3c.6 5 2.4 6.9 7.5 9-5.1 2.1-6.9 4-7.5 9-.6-5-2.4-6.9-7.5-9 5.1-2.1 6.9-4 7.5-9z' fill='%23F9C9C1'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gloock&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <!-- Login -->
+  <main class="login" data-login>
+    <form class="login__card" data-login-form>
+      <img src="../assets/img/logo-mimada.png" alt="MIMADA Beauty" class="login__logo" width="1010" height="405">
+      <h1>Panel de la tienda</h1>
+      <label class="field">
+        <span>Contraseña</span>
+        <input type="password" name="password" autocomplete="current-password" required autofocus>
+      </label>
+      <p class="msg msg--error" data-login-error hidden></p>
+      <button class="btn btn--primary btn--block" type="submit">Entrar</button>
+    </form>
+  </main>
+
+  <!-- Panel -->
+  <div class="app" data-app hidden>
+    <header class="topbar">
+      <img src="../assets/img/logo-mimada.png" alt="MIMADA Beauty" class="topbar__logo" width="1010" height="405">
+      <div class="topbar__sync">
+        <span data-sync-info>—</span>
+        <button class="btn btn--ghost btn--sm" type="button" data-sync>Actualizar desde proveedor</button>
+      </div>
+      <div class="topbar__actions">
+        <a class="btn btn--ghost btn--sm" href="/" target="_blank" rel="noopener">Ver tienda</a>
+        <button class="btn btn--ghost btn--sm" type="button" data-logout>Salir</button>
+      </div>
+    </header>
+
+    <section class="stats" data-stats></section>
+
+    <section class="help">
+      <strong>¿Cómo funciona?</strong> Precios, tonos y stock se copian solos del proveedor cada hora.
+      Aquí puedes <b>ocultar</b> productos que no quieras vender, <b>marcarlos agotados</b>, poner un <b>precio propio</b>
+      (reemplaza el del proveedor), <b>destacarlos</b> (salen primero) o ponerles una <b>etiqueta</b> como "Oferta".
+      Los cambios se ven en la tienda en máximo 1 minuto después de guardar.
+    </section>
+
+    <section class="toolbar">
+      <label class="search">
+        <input type="search" placeholder="Buscar por nombre, marca o tono" data-q>
+      </label>
+      <select data-filter>
+        <option value="">Todos</option>
+        <option value="cambios">Con cambios</option>
+        <option value="oculto">Ocultos</option>
+        <option value="agotado">Agotados</option>
+        <option value="destacado">Destacados</option>
+        <option value="precio">Con precio propio</option>
+        <option value="nuevo">Nuevos del proveedor</option>
+      </select>
+      <select data-cat><option value="">Todas las categorías</option></select>
+      <select data-brand><option value="">Todas las marcas</option></select>
+    </section>
+
+    <p class="count" data-count></p>
+    <div class="list" data-list></div>
+    <div class="more"><button class="btn btn--ghost" type="button" data-more hidden>Ver más</button></div>
+
+    <div class="savebar" data-savebar hidden>
+      <span data-pending>0 cambios sin guardar</span>
+      <button class="btn btn--ghost btn--sm" type="button" data-discard>Descartar</button>
+      <button class="btn btn--primary" type="button" data-save>Guardar cambios</button>
+    </div>
+  </div>
+
+  <div class="toast" data-toast role="status" aria-live="polite"></div>
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -216,8 +216,28 @@ h2 em, h1 em { font-style: italic; color: var(--rosa-deep); }
 .card__media { position: relative; aspect-ratio: 4 / 5; background: var(--bg-soft); overflow: hidden; }
 .card__media img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s ease; }
 .card:hover .card__media img { transform: scale(1.04); }
-.card__media--contain { background: #fff; }
-.card__media--contain img { object-fit: contain; padding: 8px; }
+.card__media--empty { background: var(--cacao); }
+.card__media--empty img { object-fit: contain; padding: 22%; }
+.card__desc { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.price small { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.variant-select { display: block; margin-top: 10px; }
+.variant-select > span { display: block; font-size: .8rem; color: var(--cacao-soft); margin-bottom: 4px; }
+.variant-select small { color: var(--muted); }
+.variant-select select {
+  width: 100%; max-width: 100%; border: 1.5px solid var(--line); border-radius: 12px; background: #fff;
+  padding: 8px 12px; color: var(--cacao); outline: 0; cursor: pointer;
+}
+.variant-select select:focus { border-color: var(--cacao-soft); }
+.card--skeleton { pointer-events: none; animation: none; }
+.card--skeleton .card__media, .card--skeleton .card__body span {
+  background: linear-gradient(90deg, var(--bg-soft) 25%, var(--rosa-soft) 50%, var(--bg-soft) 75%);
+  background-size: 200% 100%; animation: shimmer 1.4s linear infinite;
+}
+.card--skeleton .card__body span { display: block; height: 14px; border-radius: 8px; margin-bottom: 10px; }
+.card--skeleton .card__body span:nth-child(1) { width: 35%; }
+.card--skeleton .card__body span:nth-child(2) { width: 80%; height: 20px; }
+.card--skeleton .card__body span:nth-child(3) { width: 55%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
 .badge {
   position: absolute; top: 14px; left: 14px; background: var(--rosa); color: var(--cacao-deep);
   font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 500;

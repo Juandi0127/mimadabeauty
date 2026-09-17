@@ -1,0 +1,16 @@
+{
+  "name": "mimada-beauty",
+  "private": true,
+  "type": "module",
+  "description": "Tienda web de MIMADA Beauty: catálogo sincronizado con el proveedor, pedidos por WhatsApp y panel de administración.",
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "respaldo": "node tools/actualizar-respaldo.mjs"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.0"
+  }
+}
