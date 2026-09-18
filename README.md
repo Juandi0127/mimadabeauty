@@ -24,8 +24,14 @@ Tienda (js/app.js)  ◀──  GET /api/catalogo  (netlify/functions/catalogo.mj
 - **Si el proveedor falla** o devuelve menos de la mitad de productos, se conserva el último catálogo bueno.
 - **Nunca se muestra** el nombre ni el enlace del proveedor en la tienda.
 
+### Fotos
+- La tarjeta de cada producto muestra **todas sus fotos** (flechas, puntos y deslizar con el dedo).
+- **Foto por tono:** al elegir un tono se muestra su foto cuando el proveedor la tiene conectada, o cuando se asigna en el panel.
+- **Productos sin foto en el proveedor:** se usan las fotos oficiales de la marca listadas en `netlify/lib/fotos-marcas.mjs` (Olé, Engol, Majikal), solo mientras el proveedor no suba la suya.
+- **Fotos propias:** desde el panel se suben (se reducen a 1200 px en el navegador) y se guardan en Netlify Blobs; se sirven en `/api/foto/<id>`.
+
 ### Panel de administración (`/admin/`)
-Ella entra con contraseña y puede, por producto: **ocultar**, **marcar agotado**, poner **precio propio** (reemplaza el del proveedor), **destacar** (sale primero) y poner una **etiqueta** ("Oferta", "Top"…). También puede forzar "Actualizar desde proveedor". Los cambios se ven en la tienda en máximo 1 minuto.
+Ella entra con contraseña y puede, por producto: **ocultar**, **marcar agotado**, poner **precio propio** (reemplaza el del proveedor), **destacar** (sale primero), poner una **etiqueta** ("Oferta", "Top"…) y en **Fotos**: elegir la foto principal, asignar la foto de cada tono y subir fotos propias. Filtros "Sin foto" y "Con tonos sin foto" para completar lo que falte. También puede forzar "Actualizar desde proveedor". Los cambios se ven en la tienda en máximo 1 minuto.
 
 **Configuración obligatoria en Netlify:** *Site configuration → Environment variables → Add variable*
 `ADMIN_PASSWORD` = la contraseña del panel (luego hacer *Deploys → Trigger deploy*).

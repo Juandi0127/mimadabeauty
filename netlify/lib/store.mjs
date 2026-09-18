@@ -1,15 +1,18 @@
 /**
  * Almacenamiento persistente (Netlify Blobs).
- * En local, dev-server.mjs registra un reemplazo en disco en globalThis.__MIMADA_STORE__.
+ *   "mimada"       -> catalogo (del proveedor) y ajustes (del panel admin)
+ *   "mimada-fotos" -> fotos subidas desde el panel admin
+ * En local, dev-server.mjs registra un reemplazo en disco en globalThis.__MIMADA_STORE_FACTORY__.
  */
 import { fetchCatalog } from "./dulcinea.mjs";
 
 export const KEYS = { catalogo: "catalogo", ajustes: "ajustes" };
+export const PHOTO_STORE = "mimada-fotos";
 
-export async function getMimadaStore() {
-  if (globalThis.__MIMADA_STORE__) return globalThis.__MIMADA_STORE__;
+export async function getMimadaStore(name = "mimada") {
+  if (globalThis.__MIMADA_STORE_FACTORY__) return globalThis.__MIMADA_STORE_FACTORY__(name);
   const { getStore } = await import("@netlify/blobs");
-  return getStore({ name: "mimada", consistency: "strong" });
+  return getStore({ name, consistency: "strong" });
 }
 
 export async function readJSON(key, fallback = null) {
@@ -58,6 +61,19 @@ export function applyAdjustments(catalog, ajustes, { incluirOcultos = false } = 
       p.agotado = true;
       if (p.variantes) p.variantes = p.variantes.map((v) => ({ ...v, disponible: false }));
     }
+
+    // Fotos: principal elegida, fotos subidas y foto por tono
+    const porTono = a.fotosTono || {};
+    if (p.variantes && Object.keys(porTono).length) {
+      p.variantes = p.variantes.map((v) => (porTono[v.nombre] ? { ...v, imagen: porTono[v.nombre] } : v));
+    }
+    if (a.imagen || a.fotosExtra?.length || Object.keys(porTono).length) {
+      const base = original.fotos || (original.imagen ? [original.imagen] : []);
+      const todas = [...new Set([a.imagen, ...(a.fotosExtra || []), ...base, ...Object.values(porTono)].filter(Boolean))];
+      p.imagen = a.imagen || original.imagen || todas[0] || "";
+      if (todas.length > 1) p.fotos = [p.imagen, ...todas.filter((f) => f !== p.imagen)];
+    }
+
     if (a.etiqueta) p.etiqueta = a.etiqueta;
     if (a.destacado) p.destacado = true;
     if (a.oculto) p.oculto = true;

@@ -4,6 +4,8 @@
  * Se usa desde las funciones de Netlify y desde el servidor local (dev-server.mjs).
  */
 
+import { BRAND_PHOTOS } from "./fotos-marcas.mjs";
+
 const BASE = "https://somosdulcineacol.com";
 const UA = "MimadaBeautyCatalogSync/1.0";
 const PAGE_LIMIT = 250;
@@ -23,11 +25,11 @@ const CATEGORY_COLLECTIONS = [
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function getJSON(path, tries = 3) {
+async function getJSON(path, tries = 3, base = BASE) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
     try {
-      const res = await fetch(BASE + path, { headers: { "User-Agent": UA, Accept: "application/json" } });
+      const res = await fetch(base + path, { headers: { "User-Agent": UA, Accept: "application/json" } });
       if (res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status}`);
       if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { fatal: true });
       return await res.json();
@@ -202,6 +204,9 @@ export function transform(products, collectionIndex, brandCollections, now = Dat
       precio,
       imagen: imageUrl(p.images?.[0]?.src),
     };
+    // Todas las fotos del producto: la tienda las muestra como galería
+    const fotos = [...new Set((p.images || []).map((i) => imageUrl(i.src)).filter(Boolean))];
+    if (fotos.length > 1) item.fotos = fotos;
     if (precioMax != null && precioMax !== precio) item.precioDesde = true;
     const desc = cleanDescription(p.body_html);
     if (desc) item.descripcion = desc;
@@ -231,9 +236,41 @@ export function transform(products, collectionIndex, brandCollections, now = Dat
   return out;
 }
 
+/**
+ * Para productos que el proveedor publica sin foto, trae las fotos de la tienda oficial de la marca
+ * (ver fotos-marcas.mjs). Si la marca tiene foto por tono, también se conecta a cada tono.
+ */
+async function fillBrandPhotos(products) {
+  const missing = products.filter((p) => !p.images?.length && BRAND_PHOTOS[p.handle]);
+  await Promise.all(missing.map(async (p) => {
+    const [store, handle] = BRAND_PHOTOS[p.handle];
+    try {
+      const { product } = await getJSON(`/products/${handle}.json`, 2, store);
+      if (!product?.images?.length) return;
+      p.images = product.images.map((i) => ({ src: i.src, variant_ids: [] }));
+      // Los nombres de tono cambian entre tiendas ("TEDDY - AZUL" vs "Teddy-Cafe", "#1" vs "01"):
+      // se comparan por la primera palabra o el número.
+      const toneKey = (t) => (key(t).split(" ")[0] || "").replace(/^0+(?=\d)/, "");
+      const imgById = new Map(product.images.map((i) => [i.id, i.src]));
+      const byTone = new Map();
+      for (const v of product.variants || []) {
+        const src = imgById.get(v.image_id) || v.featured_image?.src;
+        if (src && !byTone.has(toneKey(v.title))) byTone.set(toneKey(v.title), src);
+      }
+      for (const v of p.variants || []) {
+        const src = byTone.get(toneKey(v.title));
+        if (src && !v.featured_image) v.featured_image = { src };
+      }
+    } catch (err) {
+      console.warn(`Sin foto de marca para ${p.handle}: ${err.message}`);
+    }
+  }));
+}
+
 /** Descarga todo del proveedor y devuelve el catálogo listo para la web. */
 export async function fetchCatalog() {
   const products = await getAllPages("/products.json", "products");
+  await fillBrandPhotos(products);
   const collections = (await getJSON("/collections.json?limit=250")).collections || [];
 
   const collectionIndex = {};

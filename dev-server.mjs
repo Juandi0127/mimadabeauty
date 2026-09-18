@@ -10,21 +10,37 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT) || 5500;
 const localDir = path.join(root, ".netlify-local");
 
-globalThis.__MIMADA_STORE__ = {
-  async get(key) {
-    try { return JSON.parse(await readFile(path.join(localDir, `${key}.json`), "utf8")); } catch { return null; }
-  },
-  async setJSON(key, value) {
-    await mkdir(localDir, { recursive: true });
-    await writeFile(path.join(localDir, `${key}.json`), JSON.stringify(value));
-  },
+// Imitación en disco de Netlify Blobs (misma API que usan las funciones)
+globalThis.__MIMADA_STORE_FACTORY__ = (name) => {
+  const dir = path.join(localDir, name);
+  const file = (key, ext) => path.join(dir, `${encodeURIComponent(key)}${ext}`);
+  const readMeta = async (key) => JSON.parse(await readFile(file(key, ".meta.json"), "utf8").catch(() => "{}"));
+  return {
+    async get(key, { type } = {}) {
+      const buf = await readFile(file(key, ".bin")).catch(() => null);
+      if (!buf) return null;
+      return type === "json" ? JSON.parse(buf.toString("utf8")) : type === "arrayBuffer" ? buf : buf.toString("utf8");
+    },
+    async getWithMetadata(key, opts) {
+      const data = await this.get(key, opts);
+      return data == null ? null : { data, metadata: await readMeta(key) };
+    },
+    async set(key, data, { metadata } = {}) {
+      await mkdir(dir, { recursive: true });
+      await writeFile(file(key, ".bin"), Buffer.from(data));
+      if (metadata) await writeFile(file(key, ".meta.json"), JSON.stringify(metadata));
+    },
+    async setJSON(key, value) { await this.set(key, JSON.stringify(value)); },
+  };
 };
 process.env.ADMIN_PASSWORD ||= "mimada-local";
 
 const functions = {
   "/api/catalogo": "netlify/functions/catalogo.mjs",
   "/api/admin": "netlify/functions/admin.mjs",
+  "/api/foto/": "netlify/functions/foto.mjs",
 };
+const findFunction = (urlPath) => functions[urlPath] || (urlPath.startsWith("/api/foto/") ? functions["/api/foto/"] : null);
 const types = {
   ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript", ".mjs": "text/javascript",
   ".json": "application/json", ".webmanifest": "application/manifest+json", ".xml": "application/xml",
@@ -49,7 +65,8 @@ async function runFunction(file, req, res) {
 http.createServer(async (req, res) => {
   try {
     const urlPath = decodeURIComponent(req.url.split("?")[0]);
-    if (functions[urlPath]) return await runFunction(functions[urlPath], req, res);
+    const fn = findFunction(urlPath);
+    if (fn) return await runFunction(fn, req, res);
 
     let file = path.normalize(path.join(root, urlPath.endsWith("/") ? `${urlPath}index.html` : urlPath));
     if (!file.startsWith(root) || /[\\/](node_modules|netlify|\.netlify-local|\.git)[\\/]/.test(file)) {

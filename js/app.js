@@ -161,14 +161,43 @@
       </label>`;
   };
 
+  // Fotos del producto para la galería de la tarjeta (incluye las fotos de cada tono)
+  const galleryOf = (p) => {
+    const fotos = [...(p.fotos || []), p.imagen, ...variantsOf(p).map((v) => v.imagen)].filter(Boolean);
+    return [...new Set(fotos)];
+  };
+
+  const galleryHtml = (gallery, current) => {
+    if (gallery.length < 2) return "";
+    return `
+        <button type="button" class="gal gal--prev" data-gal="-1" aria-label="Foto anterior"><svg><use href="#i-back"/></svg></button>
+        <button type="button" class="gal gal--next" data-gal="1" aria-label="Foto siguiente"><svg><use href="#i-back"/></svg></button>
+        <div class="gal__dots" aria-hidden="true">${gallery.slice(0, 10).map((_, i) => `<span${i === current ? ' class="is-on"' : ""}></span>`).join("")}</div>`;
+  };
+
+  function showPhoto(card, p, target) {
+    const gallery = galleryOf(p);
+    const index = typeof target === "number"
+      ? (target + gallery.length) % gallery.length
+      : Math.max(0, gallery.indexOf(target));
+    const url = typeof target === "string" && !gallery.includes(target) ? target : gallery[index];
+    if (!url) return;
+    card.dataset.fi = index;
+    $("[data-img]", card).src = url;
+    $$(".gal__dots span", card).forEach((d, i) => d.classList.toggle("is-on", i === index));
+  }
+
   const cardHtml = (p, idx) => {
     const selected = firstAvailable(p)?.nombre || "";
     const out = !isAvailable(p, selected);
     const img = findVariant(p, selected)?.imagen || p.imagen;
+    const gallery = galleryOf(p);
+    const current = Math.max(0, gallery.indexOf(img));
     return `
-    <article class="card${p.agotado ? " is-out" : ""}" data-id="${esc(p.id)}" style="animation-delay:${(idx % PAGE_SIZE) * 35}ms">
+    <article class="card${p.agotado ? " is-out" : ""}" data-id="${esc(p.id)}" data-fi="${current}" style="animation-delay:${(idx % PAGE_SIZE) * 35}ms">
       <div class="card__media${img ? "" : " card__media--empty"}">
         <img src="${esc(img || "assets/img/logo-mimada.png")}" alt="${esc(p.nombre)}" loading="lazy" decoding="async" data-img>
+        ${galleryHtml(gallery, current)}
         ${p.etiqueta ? `<span class="badge">${esc(p.etiqueta)}</span>` : ""}
         ${p.agotado ? `<span class="badge badge--out">Agotado</span>` : ""}
       </div>
@@ -199,7 +228,7 @@
     const v = findVariant(p, variant);
     const priceEl = $("[data-price]", card);
     priceEl.innerHTML = priceHtml(p, touched ? variant : variantsOf(p).length > 1 ? "" : variant);
-    if (v?.imagen) $("[data-img]", card).src = v.imagen;
+    if (v?.imagen) showPhoto(card, p, v.imagen);
     const ok = isAvailable(p, variant);
     const btn = $("[data-add]", card);
     btn.disabled = !ok;
@@ -260,6 +289,12 @@
     const p = byId[card.dataset.id];
     if (!p) return;
 
+    const nav = e.target.closest("[data-gal]");
+    if (nav) {
+      showPhoto(card, p, Number(card.dataset.fi || 0) + Number(nav.dataset.gal));
+      return;
+    }
+
     const chip = e.target.closest("[data-variant]");
     if (chip && !chip.disabled) {
       $$("[data-variant]", card).forEach((t) => {
@@ -273,6 +308,23 @@
 
     if (e.target.closest("[data-add]")) addToCart(p.id, selectedVariant(card, p));
   });
+
+  // Deslizar con el dedo sobre la foto para ver las demás
+  let touch = null;
+  grid.addEventListener("touchstart", (e) => {
+    const media = e.target.closest(".card__media");
+    if (media && e.touches.length === 1) touch = { x: e.touches[0].clientX, y: e.touches[0].clientY, media };
+  }, { passive: true });
+  grid.addEventListener("touchend", (e) => {
+    if (!touch) return;
+    const dx = e.changedTouches[0].clientX - touch.x;
+    const dy = e.changedTouches[0].clientY - touch.y;
+    const card = touch.media.closest(".card[data-id]");
+    touch = null;
+    if (!card || Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const p = byId[card.dataset.id];
+    if (p && galleryOf(p).length > 1) showPhoto(card, p, Number(card.dataset.fi || 0) + (dx < 0 ? 1 : -1));
+  }, { passive: true });
 
   grid.addEventListener("change", (e) => {
     const select = e.target.closest("[data-variant-select]");
