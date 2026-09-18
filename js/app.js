@@ -216,7 +216,7 @@
     const current = Math.max(0, gallery.indexOf(img));
     return `
     <article class="card${p.agotado ? " is-out" : ""}" data-id="${esc(p.id)}" data-fi="${current}" style="animation-delay:${(idx % PAGE_SIZE) * 35}ms">
-      <div class="card__media${img ? "" : " card__media--empty"}">
+      <div class="card__media${img ? "" : " card__media--empty"}" data-detail title="Ver producto">
         <img src="${esc(img || "assets/img/logo-mimada.png")}" alt="${esc(p.nombre)}" loading="lazy" decoding="async" data-img>
         ${galleryHtml(gallery, current)}
         ${p.etiqueta ? `<span class="badge">${esc(p.etiqueta)}</span>` : ""}
@@ -224,7 +224,7 @@
       </div>
       <div class="card__body">
         <p class="card__brand">${esc(p.marca)}</p>
-        <h3 class="card__name">${esc(p.nombre)}</h3>
+        <h3 class="card__name"><button type="button" class="card__link" data-detail>${esc(p.nombre)}</button></h3>
         ${p.descripcion ? `<p class="card__desc">${esc(p.descripcion)}</p>` : ""}
         ${variantPickerHtml(p, selected)}
         <div class="card__foot">
@@ -353,7 +353,9 @@
       return;
     }
 
-    if (e.target.closest("[data-add]")) addToCart(p.id, selectedVariant(card, p));
+    if (e.target.closest("[data-add]")) { addToCart(p.id, selectedVariant(card, p)); return; }
+
+    if (e.target.closest("[data-detail]")) openDetail(p.id, selectedVariant(card, p), Number(card.dataset.fi || 0));
   });
 
   // Deslizar con el dedo sobre la foto para ver las demás
@@ -396,21 +398,245 @@
   const errorEl = $("[data-form-error]");
   let lastFocus = null;
 
-  function addToCart(id, variant) {
+  function addToCart(id, variant, qty = 1) {
     const p = byId[id];
-    if (!isAvailable(p, variant)) { toast("Ese producto está agotado por ahora."); return; }
+    if (!isAvailable(p, variant)) { toast("Ese producto está agotado por ahora."); return false; }
     const existing = cart.find((i) => i.id === id && (i.variant || "") === (variant || ""));
-    if (existing) existing.qty += 1;
-    else cart.push({ id, variant: variant || "", qty: 1 });
+    if (existing) existing.qty += qty;
+    else cart.push({ id, variant: variant || "", qty });
     saveCart();
     renderCart();
-    toast(`${p.nombre}${variant && variantsOf(p).length > 1 ? ` · ${variant}` : ""} agregado a tu bolsa ✦`);
+    toast(`${qty > 1 ? `${qty} × ` : ""}${p.nombre}${variant && variantsOf(p).length > 1 ? ` · ${variant}` : ""} agregado a tu bolsa ✦`);
     $$("[data-cart-count]").forEach((c) => {
       c.classList.remove("bump");
       void c.offsetWidth;
       c.classList.add("bump");
     });
+    return true;
   }
+
+  /* ---------- Vista de producto ---------- */
+  const pd = $("[data-pd]");
+  const pdBody = $("[data-pd-body]");
+  const pdState = { id: null, variant: "", index: 0, qty: 1, pushed: false };
+  const productUrl = (id) => `${location.origin}${location.pathname}#producto=${encodeURIComponent(id)}`;
+
+  function openDetail(id, variant, index, { fromLink = false } = {}) {
+    const p = byId[id];
+    if (!p) return;
+    const gallery = galleryOf(p);
+    pdState.id = id;
+    pdState.qty = 1;
+    pdState.variant = variant || firstAvailable(p)?.nombre || "";
+    const variantImg = findVariant(p, pdState.variant)?.imagen;
+    pdState.index = typeof index === "number" && index < gallery.length ? index : Math.max(0, gallery.indexOf(variantImg || p.imagen));
+    renderDetail();
+    if (!pd.open) {
+      pd.showModal();
+      document.body.classList.add("no-scroll");
+      pdBody.scrollTop = 0;
+    }
+    // Enlace propio del producto (se puede compartir) y el botón "atrás" del celular cierra la vista
+    if (!fromLink && !location.hash.startsWith("#producto=")) {
+      history.pushState({ producto: id }, "", `#producto=${encodeURIComponent(id)}`);
+      pdState.pushed = true;
+    } else if (!fromLink) {
+      history.replaceState(history.state, "", `#producto=${encodeURIComponent(id)}`);
+    }
+  }
+
+  function closeDetail() {
+    if (pd.classList.contains("pd--full")) { setFull(false); return; }
+    pd.close();
+  }
+
+  pd.addEventListener("close", () => {
+    document.body.classList.remove("no-scroll");
+    setFull(false);
+    if (location.hash.startsWith("#producto=")) {
+      if (pdState.pushed && history.state?.producto) history.back();
+      else history.replaceState(null, "", location.pathname + location.search);
+    }
+    pdState.pushed = false;
+  });
+  pd.addEventListener("cancel", (e) => {
+    if (pd.classList.contains("pd--full")) { e.preventDefault(); setFull(false); }
+  });
+  window.addEventListener("popstate", () => {
+    if (pd.open && !location.hash.startsWith("#producto=")) { pdState.pushed = false; pd.close(); }
+  });
+
+  const askText = (p) => `¡Hola MIMADA! ✨ Quiero preguntar por este producto:\n${p.nombre}${p.marca ? ` (${p.marca})` : ""}${pdState.variant ? `\n${optLabel(p)}: ${pdState.variant}` : ""}\n${productUrl(p.id)}`;
+
+  function renderDetail() {
+    const p = byId[pdState.id];
+    const gallery = galleryOf(p);
+    const vs = variantsOf(p);
+    const ok = isAvailable(p, pdState.variant);
+    const img = gallery[pdState.index] || p.imagen;
+    const nav = gallery.length > 1 ? `
+          <button type="button" class="gal gal--prev" data-pd-nav="-1" aria-label="Foto anterior"><svg><use href="#i-back"/></svg></button>
+          <button type="button" class="gal gal--next" data-pd-nav="1" aria-label="Foto siguiente"><svg><use href="#i-back"/></svg></button>
+          <span class="pd__counter" data-pd-counter>${pdState.index + 1} / ${gallery.length}</span>` : "";
+
+    pdBody.innerHTML = `
+      <div class="pd__gallery">
+        <div class="pd__stage${img ? "" : " pd__stage--empty"}" data-pd-stage>
+          <img src="${esc(img || "assets/img/logo-mimada.png")}" alt="${esc(p.nombre)}" data-pd-img draggable="false">
+          ${nav}
+          ${img ? `<button type="button" class="pd__zoom" data-pd-full aria-label="Ver foto en pantalla completa"><svg><use href="#i-expand"/></svg></button>` : ""}
+        </div>
+        ${gallery.length > 1 ? `<div class="pd__thumbs">${gallery.map((u, i) => `
+          <button type="button" class="pd__thumb${i === pdState.index ? " is-on" : ""}" data-pd-go="${i}" aria-label="Foto ${i + 1}"><img src="${esc(u)}" alt="" loading="lazy"></button>`).join("")}
+        </div>` : ""}
+      </div>
+      <div class="pd__info">
+        <p class="card__brand">${esc(p.marca)}</p>
+        <h2 id="pd-title" class="pd__title">${esc(p.nombre)}</h2>
+        <p class="pd__cat">${esc(p.categoria)}${p.etiqueta ? ` <span class="pd__tag">${esc(p.etiqueta)}</span>` : ""}</p>
+        <div class="price pd__price">${priceHtml(p, pdState.variant)}</div>
+        ${vs.length ? `
+        <div class="pd__variants">
+          <p class="pd__label">${esc(optLabel(p))}: <strong>${esc(pdState.variant)}</strong>${ok ? "" : ` <span class="pd__out">· agotado</span>`}</p>
+          <div class="pd__chips">${vs.map((v) => `
+            <button type="button" class="pd-chip${v.nombre === pdState.variant ? " is-on" : ""}${v.imagen ? " pd-chip--img" : ""}" data-pd-variant="${esc(v.nombre)}" ${v.disponible ? "" : "disabled"} title="${esc(v.nombre)}${v.disponible ? "" : " (agotado)"}">
+              ${v.imagen ? `<img src="${esc(v.imagen)}" alt="" loading="lazy">` : ""}<span>${esc(v.nombre)}</span>
+            </button>`).join("")}
+          </div>
+        </div>` : ""}
+        ${p.descripcion ? `<p class="pd__desc">${esc(p.descripcion)}</p>` : ""}
+        <div class="pd__buy">
+          <div class="qty qty--lg">
+            <button type="button" data-pd-qty="-1" aria-label="Quitar uno">−</button>
+            <span aria-live="polite">${pdState.qty}</span>
+            <button type="button" data-pd-qty="1" aria-label="Agregar uno">+</button>
+          </div>
+          <button type="button" class="btn btn--cacao pd__add" data-pd-add ${ok ? "" : "disabled"}><svg><use href="#i-bag"/></svg> ${ok ? "Agregar a la bolsa" : "Agotado"}</button>
+        </div>
+        <div class="pd__more">
+          <a class="btn btn--ghost-dark btn--sm" href="${esc(waUrl(askText(p)))}" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg> Preguntar por WhatsApp</a>
+          <button type="button" class="btn btn--ghost-dark btn--sm" data-pd-share><svg><use href="#i-share"/></svg> Compartir</button>
+        </div>
+      </div>`;
+  }
+
+  function setDetailPhoto(i) {
+    const p = byId[pdState.id];
+    const gallery = galleryOf(p);
+    if (!gallery.length) return;
+    pdState.index = (i + gallery.length) % gallery.length;
+    setZoom(false);
+    $("[data-pd-img]", pd).src = gallery[pdState.index];
+    const counter = $("[data-pd-counter]", pd);
+    if (counter) counter.textContent = `${pdState.index + 1} / ${gallery.length}`;
+    $$("[data-pd-go]", pd).forEach((t, n) => t.classList.toggle("is-on", n === pdState.index));
+    $(`[data-pd-go="${pdState.index}"]`, pd)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
+  // Pantalla completa y zoom (tocar la foto acerca en ese punto; mover el dedo/ratón recorre la foto)
+  function setFull(on) {
+    pd.classList.toggle("pd--full", on);
+    if (!on) setZoom(false);
+  }
+  function setZoom(on, e) {
+    const img = $("[data-pd-img]", pd);
+    if (!img) return;
+    img.classList.toggle("is-zoom", on);
+    if (on && e) moveZoom(e);
+    if (!on) img.style.transformOrigin = "";
+  }
+  function moveZoom(e) {
+    const img = $("[data-pd-img]", pd);
+    const r = img.getBoundingClientRect();
+    const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
+    const y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
+    img.style.transformOrigin = `${x}% ${y}%`;
+  }
+
+  pd.addEventListener("click", async (e) => {
+    if (e.target === pd || e.target.closest("[data-pd-close]")) { closeDetail(); return; }
+    const p = byId[pdState.id];
+    if (!p) return;
+
+    const nav = e.target.closest("[data-pd-nav]");
+    if (nav) { setDetailPhoto(pdState.index + Number(nav.dataset.pdNav)); return; }
+    const go = e.target.closest("[data-pd-go]");
+    if (go) { setDetailPhoto(Number(go.dataset.pdGo)); return; }
+
+    if (e.target.closest("[data-pd-full]")) { setFull(true); return; }
+    if (e.target.closest("[data-pd-img]")) {
+      if (!pd.classList.contains("pd--full")) { if (galleryOf(p).length) setFull(true); return; }
+      const img = $("[data-pd-img]", pd);
+      setZoom(!img.classList.contains("is-zoom"), e);
+      return;
+    }
+
+    const chip = e.target.closest("[data-pd-variant]");
+    if (chip && !chip.disabled) {
+      pdState.variant = chip.dataset.pdVariant;
+      const vImg = findVariant(p, pdState.variant)?.imagen;
+      if (vImg) pdState.index = Math.max(0, galleryOf(p).indexOf(vImg));
+      const scroll = pdBody.scrollTop;
+      renderDetail();
+      pdBody.scrollTop = scroll;
+      return;
+    }
+
+    const q = e.target.closest("[data-pd-qty]");
+    if (q) {
+      pdState.qty = Math.min(20, Math.max(1, pdState.qty + Number(q.dataset.pdQty)));
+      $(".qty--lg span", pd).textContent = pdState.qty;
+      return;
+    }
+
+    const add = e.target.closest("[data-pd-add]");
+    if (add) {
+      if (addToCart(p.id, pdState.variant, pdState.qty)) {
+        add.innerHTML = `<svg><use href="#i-bag"/></svg> ¡Agregado!`;
+        setTimeout(() => { if (add.isConnected) add.innerHTML = `<svg><use href="#i-bag"/></svg> Agregar a la bolsa`; }, 1400);
+      }
+      return;
+    }
+
+    if (e.target.closest("[data-pd-share]")) {
+      const url = productUrl(p.id);
+      try {
+        if (navigator.share) await navigator.share({ title: `${p.nombre} · MIMADA Beauty`, text: `${p.nombre}${p.marca ? ` (${p.marca})` : ""} en MIMADA Beauty`, url });
+        else { await navigator.clipboard.writeText(url); toast("Enlace copiado ✦ pégalo donde quieras compartirlo"); }
+      } catch { /* la persona canceló */ }
+    }
+  });
+
+  pd.addEventListener("pointermove", (e) => {
+    const img = e.target.closest("[data-pd-img]");
+    if (img && img.classList.contains("is-zoom")) moveZoom(e);
+  });
+
+  pd.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") setDetailPhoto(pdState.index - 1);
+    if (e.key === "ArrowRight") setDetailPhoto(pdState.index + 1);
+  });
+
+  // Deslizar la foto grande con el dedo
+  let pdTouch = null;
+  pd.addEventListener("touchstart", (e) => {
+    if (e.target.closest("[data-pd-stage]") && e.touches.length === 1 && !$("[data-pd-img]", pd)?.classList.contains("is-zoom")) {
+      pdTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  }, { passive: true });
+  pd.addEventListener("touchend", (e) => {
+    if (!pdTouch) return;
+    const dx = e.changedTouches[0].clientX - pdTouch.x;
+    const dy = e.changedTouches[0].clientY - pdTouch.y;
+    pdTouch = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) setDetailPhoto(pdState.index + (dx < 0 ? 1 : -1));
+  }, { passive: true });
+
+  function openFromHash() {
+    const m = location.hash.match(/^#producto=(.+)$/);
+    if (m && byId[decodeURIComponent(m[1])] && !pd.open) openDetail(decodeURIComponent(m[1]), "", undefined, { fromLink: true });
+  }
+  window.addEventListener("hashchange", openFromHash);
 
   const lineTotal = (i) => {
     const price = priceOf(byId[i.id], i.variant);
@@ -669,5 +895,6 @@
     buildFilters();
     renderGrid();
     renderCart();
+    openFromHash(); // enlace directo a un producto: .../#producto=gloss-sublime-atenea
   });
 })();

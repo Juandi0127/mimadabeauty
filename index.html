@@ -45,6 +45,8 @@
     <symbol id="i-card" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 9.5h19" stroke="currentColor" stroke-width="1.5"/><path d="M6 15h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V3m0 0l-4 4m4-4l4 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </svg>
 
@@ -286,6 +288,12 @@
       <button class="btn btn--wa btn--block" type="button" data-send-order hidden><svg><use href="#i-wa"/></svg> Enviar pedido por WhatsApp</button>
     </div>
   </aside>
+
+  <!-- ============ VISTA DE PRODUCTO ============ -->
+  <dialog class="pd" data-pd aria-labelledby="pd-title">
+    <button type="button" class="pd__close" data-pd-close aria-label="Cerrar"><svg><use href="#i-close"/></svg></button>
+    <div class="pd__body" data-pd-body></div>
+  </dialog>
 
   <div class="toast" data-toast role="status" aria-live="polite"></div>
 
