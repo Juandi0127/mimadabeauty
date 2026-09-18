@@ -126,11 +126,32 @@
       .join("");
     const brands = [...new Set(PRODUCTS.map((p) => p.marca).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
     brandEl.innerHTML = `<option value="">Todas las marcas</option>` + brands.map((b) => `<option value="${esc(b)}">${esc(b)}</option>`).join("");
+    // Palabras de cada producto; la búsqueda compara el inicio de cada palabra
+    // ("termo" encuentra "Termo" y "Termoprotector", pero no "de-termo-inado").
     searchIndex = new Map(PRODUCTS.map((p) => {
-      const text = `${p.nombre} ${p.marca} ${p.categoria} ${p.descripcion || ""} ${variantsOf(p).map((v) => v.nombre).join(" ")}`;
-      return [p.id, `${compact(text)} ${compact(text).replace(/\s+/g, "")} ${compact(p.marca).replace(/\s+/g, "")}`];
+      const main = new Set(compact(`${p.nombre} ${p.marca}`).split(/\s+/).filter(Boolean));
+      main.add(compact(p.marca).replace(/\s+/g, "")); // "L.A. Girl" -> "lagirl", "Ani-K" -> "anik"
+      const rest = `${p.categoria} ${p.descripcion || ""} ${variantsOf(p).map((v) => v.nombre).join(" ")}`;
+      const all = new Set([...main, ...compact(rest).split(/\s+/).filter(Boolean)]);
+      return [p.id, { main: [...main], all: [...all], brand: compact(p.marca) }];
     }));
   }
+
+  const matchesSearch = (p, terms) => {
+    const { all } = searchIndex.get(p.id) || { all: [] };
+    return terms.every((t) => all.some((w) => w.startsWith(t)));
+  };
+
+  // Relevancia: primero lo que coincide en nombre/marca (mejor si es la palabra exacta o la marca completa)
+  const searchScore = (p, terms, query) => {
+    const { main, brand } = searchIndex.get(p.id) || { main: [], brand: "" };
+    let score = brand && (brand === query || brand.replace(/\s+/g, "") === query.replace(/\s+/g, "")) ? 10 : 0;
+    for (const t of terms) {
+      if (main.includes(t)) score += 3;
+      else if (main.some((w) => w.startsWith(t))) score += 2;
+    }
+    return score;
+  };
 
   const priceHtml = (p, variant) => {
     const price = priceOf(p, variant);
@@ -235,19 +256,45 @@
     btn.innerHTML = `<svg><use href="#i-bag"/></svg> ${ok ? "Agregar" : "Agotado"}`;
   }
 
-  function filtered() {
-    const words = compact(state.q).split(/\s+/).filter(Boolean);
-    return PRODUCTS.filter((p) => {
-      if (state.cat !== "Todo" && p.categoria !== state.cat) return false;
-      if (state.brand && p.marca !== state.brand) return false;
-      const hay = searchIndex.get(p.id) || "";
-      return words.every((w) => hay.includes(w));
+  function filtered({ ignoreFilters = false } = {}) {
+    const query = compact(state.q).trim();
+    const terms = query.split(/\s+/).filter(Boolean);
+    const list = PRODUCTS.filter((p) => {
+      if (!ignoreFilters && state.cat !== "Todo" && p.categoria !== state.cat) return false;
+      if (!ignoreFilters && state.brand && p.marca !== state.brand) return false;
+      return !terms.length || matchesSearch(p, terms);
     });
+    if (!terms.length || ignoreFilters) return list;
+    return list
+      .map((p, i) => ({ p, i, s: searchScore(p, terms, query) }))
+      .sort((a, b) => b.s - a.s || a.i - b.i)
+      .map((x) => x.p);
   }
+
+  // Si hay búsqueda con filtros activos, avisar de los resultados que quedan por fuera
+  const hintEl = $("[data-hint]");
+  function renderHint(visibleCount) {
+    const filtersOn = state.cat !== "Todo" || state.brand;
+    const extra = state.q.trim() && filtersOn ? filtered({ ignoreFilters: true }).length - visibleCount : 0;
+    hintEl.hidden = extra <= 0;
+    if (extra > 0) {
+      hintEl.innerHTML = `Hay ${extra} ${extra === 1 ? "resultado más" : "resultados más"} para “${esc(state.q.trim())}” en otras categorías o marcas. <button type="button" class="link" data-clear-filters>Ver todos</button>`;
+    }
+  }
+
+  hintEl.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-clear-filters]")) return;
+    state.cat = "Todo";
+    state.brand = "";
+    brandEl.value = "";
+    $$("[data-cat]", filtersEl).forEach((b) => b.setAttribute("aria-pressed", b.dataset.cat === "Todo"));
+    resetAndRender();
+  });
 
   function renderGrid(append = false) {
     if (!loaded) return;
     const list = filtered();
+    renderHint(list.length);
     const shown = list.slice(append ? state.limit - PAGE_SIZE : 0, state.limit);
     if (append) grid.insertAdjacentHTML("beforeend", shown.map(cardHtml).join(""));
     else grid.innerHTML = shown.map(cardHtml).join("");

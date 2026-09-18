@@ -17,11 +17,11 @@
    ========================================================= */
 window.MIMADA_PRODUCTS = [
   {
-    id: "termo-bloom-steel",
-    nombre: "Termo Bloom Steel",
+    id: "termo-bloomshell",
+    nombre: "Termo Bloomshell",
     marca: "Bloomshell",
     categoria: "Brochas y accesorios",
-    precio: null,
+    precio: 140000,
     imagen: "assets/img/productos/termo-bloom-steel-1.jpg",
     descripcion: "Termo de acero inoxidable con acabado perlado palo de rosa. Incluye pitillo metálico, charms decorativos y stickers para personalizarlo.",
     etiqueta: "Nuevo"
