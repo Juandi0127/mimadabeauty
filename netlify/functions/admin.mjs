@@ -43,6 +43,13 @@ function sanitize(input) {
       if (tono.length <= 100 && validPhoto(url)) porTono[tono] = url;
     }
     if (Object.keys(porTono).length) a.fotosTono = porTono;
+    // Precio propio de cada tono o presentación (ej. Mini y Grande valen distinto)
+    const preciosTono = {};
+    for (const [tono, valor] of Object.entries(raw.preciosTono || {}).slice(0, 150)) {
+      const n = Math.round(Number(valor));
+      if (tono.length <= 100 && Number.isFinite(n) && n > 0 && n < 100000000) preciosTono[tono] = n;
+    }
+    if (Object.keys(preciosTono).length) a.preciosTono = preciosTono;
     if (Object.keys(a).length) productos[id] = a;
   }
   return { productos, actualizado: new Date().toISOString() };

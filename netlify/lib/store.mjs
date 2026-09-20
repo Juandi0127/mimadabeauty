@@ -52,10 +52,26 @@ export function applyAdjustments(catalog, ajustes, { incluirOcultos = false } = 
     if (!a) { productos.push(original); continue; }
     if (a.oculto && !incluirOcultos) continue;
     const p = { ...original };
-    if (typeof a.precio === "number" && a.precio > 0) {
-      p.precio = a.precio;
+    // Precio propio: primero el general y luego el de cada tono (más específico)
+    const precioGeneral = typeof a.precio === "number" && a.precio > 0 ? a.precio : null;
+    const precioPorTono = a.preciosTono || {};
+    if (precioGeneral) {
+      p.precio = precioGeneral;
       delete p.precioDesde;
-      if (p.variantes) p.variantes = p.variantes.map((v) => ({ ...v, precio: a.precio }));
+      if (p.variantes) p.variantes = p.variantes.map((v) => ({ ...v, precio: precioGeneral }));
+    }
+    if (p.variantes && Object.keys(precioPorTono).length) {
+      p.variantes = p.variantes.map((v) => (precioPorTono[v.nombre] > 0 ? { ...v, precio: precioPorTono[v.nombre] } : v));
+    }
+    if (p.variantes?.length && (precioGeneral || Object.keys(precioPorTono).length)) {
+      // El precio que se muestra es el más bajo disponible ("Desde" si los tonos valen distinto)
+      const disponibles = p.variantes.filter((v) => v.disponible);
+      const precios = (disponibles.length ? disponibles : p.variantes).map((v) => v.precio).filter((x) => x != null);
+      if (precios.length) {
+        p.precio = Math.min(...precios);
+        if (Math.max(...precios) !== p.precio) p.precioDesde = true;
+        else delete p.precioDesde;
+      }
     }
     if (a.agotado) {
       p.agotado = true;

@@ -74,6 +74,14 @@
   };
   const tonePhoto = (p, v) => adj(p.id).fotosTono?.[v.nombre] || v.imagen || "";
   const tonesWithPhoto = (p) => (p.variantes || []).filter((v) => tonePhoto(p, v)).length;
+  const tonePrice = (p, v) => adj(p.id).preciosTono?.[v.nombre] ?? null;
+  const tonesWithPrice = (p) => (p.variantes || []).filter((v) => tonePrice(p, v)).length;
+  const hasOwnPrice = (p) => Boolean(adj(p.id).precio || tonesWithPrice(p));
+
+  function priceStatus(p) {
+    const n = tonesWithPrice(p);
+    return n ? `<span class="pill pill--price">${n} ${n === 1 ? "tono con precio propio" : "tonos con precio propio"}</span>` : "";
+  }
 
   function photoStatus(p) {
     if (!principalOf(p)) return `<span class="pill pill--out">Sin foto</span>`;
@@ -131,13 +139,21 @@
 
     const vs = p.variantes || [];
     $("[data-ph-tones-wrap]").hidden = vs.length < 2;
+    const original = (nombre) => (p.variantes || []).find((v) => v.nombre === nombre);
     $("[data-ph-tones]").innerHTML = vs.map((v) => {
       const current = tonePhoto(p, v);
+      const precio = tonePrice(p, v);
+      const precioProveedor = original(v.nombre)?.precio;
       const options = fotos.map((url) => `<button type="button" class="tone-opt${url === current ? " is-on" : ""}" data-ph-tone="${esc(url)}" aria-label="Usar esta foto para ${esc(v.nombre)}"><img src="${esc(url)}" alt="" loading="lazy"></button>`).join("");
       const none = v.imagen ? "" : `<button type="button" class="tone-opt tone-opt--none${current ? "" : " is-on"}" data-ph-tone="">Sin foto</button>`;
       return `
         <div class="tone-row" data-tone="${esc(v.nombre)}">
           <div class="tone-row__name"><strong>${esc(v.nombre)}</strong>${v.disponible ? "" : "<small>agotado</small>"}</div>
+          <label class="tone-row__price">
+            <span>Precio propio</span>
+            <input type="number" inputmode="numeric" min="0" step="100" placeholder="${precioProveedor ?? ""}" value="${precio ?? ""}" data-ph-precio>
+            <small>${precioProveedor != null ? `proveedor: ${money(precioProveedor)}` : "sin precio del proveedor"}</small>
+          </label>
           <div class="tone-row__opts">${none}${options}</div>
         </div>`;
     }).join("");
@@ -178,6 +194,17 @@
       setField(photoId, "fotosTono", tonos);
       renderPhotos();
     }
+  });
+
+  dialog.addEventListener("change", (e) => {
+    const input = e.target.closest("[data-ph-precio]");
+    if (!input) return;
+    const nombre = input.closest("[data-tone]").dataset.tone;
+    const precios = { ...(adj(photoId).preciosTono || {}) };
+    const n = Math.round(Number(input.value));
+    if (input.value.trim() && n > 0) precios[nombre] = n;
+    else delete precios[nombre];
+    setField(photoId, "preciosTono", precios);
   });
 
   dialog.addEventListener("close", () => { if (photoId) refreshRow(photoId); });
@@ -292,7 +319,7 @@
         case "oculto": if (!a.oculto) return false; break;
         case "agotado": if (!p.agotado && !a.agotado) return false; break;
         case "destacado": if (!a.destacado) return false; break;
-        case "precio": if (!a.precio) return false; break;
+        case "precio": if (!hasOwnPrice(p)) return false; break;
         case "nuevo": if (p.etiqueta !== "Nuevo") return false; break;
         case "sinfoto": if (principalOf(p)) return false; break;
         case "tonossinfoto": if (!p.variantes || p.variantes.length < 2 || tonesWithPhoto(p) === p.variantes.length) return false; break;
@@ -323,10 +350,10 @@
         <strong>${esc(p.nombre)}</strong>
         <span>${esc(p.marca || "Sin marca")} · ${esc(p.categoria)}${p.etiqueta === "Nuevo" ? ` · <b class="new">Nuevo</b>` : ""}</span>
         <span>Precio proveedor: <b>${providerPrice}</b> ${stockText(p)}</span>
-        <span class="row__photo-line">${photoStatus(p)} <button type="button" class="linkbtn" data-photos-open>Fotos${(p.variantes || []).length > 1 ? " y tonos" : ""}</button></span>
+        <span class="row__photo-line">${photoStatus(p)}${priceStatus(p)} <button type="button" class="linkbtn" data-photos-open>${(p.variantes || []).length > 1 ? "Precios y fotos por tono" : "Fotos"}</button></span>
       </div>
       <label class="row__field">
-        <span>Precio propio</span>
+        <span>${(p.variantes || []).length > 1 ? "Precio (todos los tonos)" : "Precio propio"}</span>
         <input type="number" inputmode="numeric" min="0" step="100" placeholder="${p.precio ?? ""}" value="${a.precio ?? ""}" data-field="precio">
       </label>
       <label class="row__field">
@@ -352,7 +379,7 @@
       ["Ocultos", ocultos],
       ["Agotados", agotados],
       ["Destacados", vals.filter((a) => a.destacado).length],
-      ["Precio propio", vals.filter((a) => a.precio).length],
+      ["Precio propio", vals.filter((a) => a.precio || a.preciosTono).length],
     ];
     $("[data-stats]").innerHTML = stats.map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
     $("[data-sync-info]").textContent = syncInfo();

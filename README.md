@@ -31,7 +31,7 @@ Tienda (js/app.js)  ◀──  GET /api/catalogo  (netlify/functions/catalogo.mj
 - **Fotos propias:** desde el panel se suben (se reducen a 1200 px en el navegador) y se guardan en Netlify Blobs; se sirven en `/api/foto/<id>`.
 
 ### Panel de administración (`/admin/`)
-Ella entra con contraseña y puede, por producto: **ocultar**, **marcar agotado**, poner **precio propio** (reemplaza el del proveedor), **destacar** (sale primero), poner una **etiqueta** ("Oferta", "Top"…) y en **Fotos**: elegir la foto principal, asignar la foto de cada tono y subir fotos propias. Filtros "Sin foto" y "Con tonos sin foto" para completar lo que falte. También puede forzar "Actualizar desde proveedor". Los cambios se ven en la tienda en máximo 1 minuto.
+Ella entra con contraseña y puede, por producto: **ocultar**, **marcar agotado**, poner **precio propio** (reemplaza el del proveedor), **destacar** (sale primero), poner una **etiqueta** ("Oferta", "Top"…) y, en la ventana del producto, **precio y foto de cada tono**: precio propio por tono o presentación (la mini y la grande pueden valer distinto), foto principal, foto de cada tono y subir fotos propias. El precio de la fila aplica a todos los tonos; el de cada tono manda sobre ese. Filtros "Sin foto" y "Con tonos sin foto" para completar lo que falte. También puede forzar "Actualizar desde proveedor". Los cambios se ven en la tienda en máximo 1 minuto.
 
 **Configuración obligatoria en Netlify:** *Site configuration → Environment variables → Add variable*
 `ADMIN_PASSWORD` = la contraseña del panel (luego hacer *Deploys → Trigger deploy*).
